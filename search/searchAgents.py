@@ -285,15 +285,18 @@ class CornersProblem(search.SearchProblem):
         Returns the start state (in your state space, not the full Pacman state
         space)
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # State: (pacman_position, tuple_of_visited_corners)
+        # If Pacman starts on a corner, record it immediately.
+        visited = tuple(c for c in self.corners if c == self.startingPosition)
+        return (self.startingPosition, visited)
 
     def isGoalState(self, state: Any):
         """
         Returns whether this search state is a goal state of the problem.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # Goal: all four corners visited
+        position, visited = state
+        return len(visited) == 4
 
     def getSuccessors(self, state: Any):
         """
@@ -308,14 +311,17 @@ class CornersProblem(search.SearchProblem):
 
         successors = []
         for action in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
-            # Add a successor state to the successor list if the action is legal
-            # Here's a code snippet for figuring out whether a new position hits a wall:
-            #   x,y = currentPosition
-            #   dx, dy = Actions.directionToVector(action)
-            #   nextx, nexty = int(x + dx), int(y + dy)
-            #   hitsWall = self.walls[nextx][nexty]
-
-            "*** YOUR CODE HERE ***"
+            x, y = state[0]
+            dx, dy = Actions.directionToVector(action)
+            nextx, nexty = int(x + dx), int(y + dy)
+            if not self.walls[nextx][nexty]:
+                nextPos = (nextx, nexty)
+                visited = state[1]
+                # Record this corner if it hasn't been visited yet
+                if nextPos in self.corners and nextPos not in visited:
+                    visited = tuple(sorted(visited + (nextPos,)))
+                nextState = (nextPos, visited)
+                successors.append((nextState, action, 1))
 
         self._expanded += 1 # DO NOT CHANGE
         return successors
@@ -346,12 +352,38 @@ def cornersHeuristic(state: Any, problem: CornersProblem):
     This function should always return a number that is a lower bound on the
     shortest path from the state to a goal of the problem; i.e.  it should be
     admissible (as well as consistent).
+
+    Heuristic: greedy nearest-neighbour Manhattan chain.
+    From the current position, repeatedly select the nearest unvisited corner
+    (by Manhattan distance), add that distance, move there conceptually, and
+    repeat until all corners are accounted for. The sum is an admissible and
+    consistent lower bound.
     """
     corners = problem.corners # These are the corner coordinates
     walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
 
-    "*** YOUR CODE HERE ***"
-    return 0 # Default to trivial solution
+    position, visited = state
+    # Collect corners that still need to be visited
+    unvisited = [c for c in corners if c not in visited]
+
+    if not unvisited:
+        return 0  # All corners already visited -- goal state
+
+    # Greedy nearest-neighbour chain using Manhattan distance
+    total = 0
+    current = position
+    remaining = list(unvisited)
+
+    while remaining:
+        # Manhattan distance from current pseudo-position to each remaining corner
+        nearest = min(remaining,
+                      key=lambda c: abs(current[0] - c[0]) + abs(current[1] - c[1]))
+        dist = abs(current[0] - nearest[0]) + abs(current[1] - nearest[1])
+        total += dist
+        current = nearest          # "move" to this corner
+        remaining.remove(nearest)  # mark it as accounted for
+
+    return total
 
 class AStarCornersAgent(SearchAgent):
     "A SearchAgent for FoodSearchProblem using A* and your foodHeuristic"
@@ -359,8 +391,6 @@ class AStarCornersAgent(SearchAgent):
         self.searchFunction = lambda prob: search.aStarSearch(prob, cornersHeuristic)
         self.searchType = CornersProblem
 
-
-# MAHRUKH
 class FoodSearchProblem:
     """
     A search problem associated with finding the a path that collects all of the

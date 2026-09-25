@@ -96,10 +96,71 @@ def nullHeuristic(state, problem=None):
     """
     return 0
 
+def greedyBestFirstSearch(problem: SearchProblem, heuristic=nullHeuristic):
+    """
+    Search the node that has the lowest heuristic value h(n) first.
+    Priority is based ONLY on h(n) -- no path cost is considered.
+    Uses graph-search (explored set) to avoid revisiting states.
+    """
+    frontier = util.PriorityQueue()
+    startState = problem.getStartState()
+    # Push (state, actions_so_far) with priority h(startState)
+    frontier.push((startState, []), heuristic(startState, problem))
+    explored = set()
+
+    while not frontier.isEmpty():
+        state, actions = frontier.pop()
+
+        # Skip if already fully expanded
+        if state in explored:
+            continue
+        explored.add(state)
+
+        if problem.isGoalState(state):
+            return actions
+
+        for successor, action, stepCost in problem.getSuccessors(state):
+            if successor not in explored:
+                h = heuristic(successor, problem)
+                frontier.push((successor, actions + [action]), h)
+
+    return []  # No path found
+
 def aStarSearch(problem: SearchProblem, heuristic=nullHeuristic):
-    """Search the node that has the lowest combined cost and heuristic first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    """
+    Search the node that has the lowest f(n) = g(n) + h(n) first.
+    g(n) is the actual path cost from start; h(n) is the heuristic estimate.
+    Uses graph-search (explored set) with lazy deletion for correct
+    repeated-state handling and optimal-path behaviour.
+    Goal is tested at expansion (dequeue) time, not generation time.
+    """
+    frontier = util.PriorityQueue()
+    startState = problem.getStartState()
+    # Each frontier item: (state, actions_so_far, g_cost)
+    h_start = heuristic(startState, problem)
+    frontier.push((startState, [], 0), h_start)  # f = 0 + h(start)
+    explored = set()
+
+    while not frontier.isEmpty():
+        state, actions, g = frontier.pop()
+
+        # Lazy deletion: skip if already expanded via a cheaper path
+        if state in explored:
+            continue
+        explored.add(state)
+
+        # Goal test at expansion time
+        if problem.isGoalState(state):
+            return actions
+
+        for successor, action, stepCost in problem.getSuccessors(state):
+            if successor not in explored:
+                new_g = g + stepCost
+                h = heuristic(successor, problem)
+                f = new_g + h
+                frontier.push((successor, actions + [action], new_g), f)
+
+    return []  # No path found
 
 
 # Abbreviations
@@ -107,3 +168,4 @@ bfs = breadthFirstSearch
 dfs = depthFirstSearch
 astar = aStarSearch
 ucs = uniformCostSearch
+gbfs = greedyBestFirstSearch
