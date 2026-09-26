@@ -478,15 +478,47 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     position, foodGrid = state
     "*** YOUR CODE HERE ***"
 
-    # Bottleneck distance from pacman to closest food dot
-    max_distance = 0
-    for food in foodGrid.asList():
-        distance = abs(position[0] - food[0]) + abs(position[1] - food[1])
-        if distance > max_distance:
-            max_distance = distance
-            
+    position, foodGrid = state
+    food_list = foodGrid.asList()
+    
+    if not food_list:
+        return 0
 
-    return max_distance
+    # Minimum Spanning Tree (MST) using Manhattan distance
+    # The true path must visit all food dots. Any path is a spanning tree,
+    # so the weight of the MST of the food dots is an admissible lower bound 
+    # for the cost to travel between all the food dots.
+    
+    # We build the MST of all remaining food dots using Prim's Algorithm
+    unvisited = set(food_list)
+    
+    # Start the tree with an arbitrary food dot
+    start_node = unvisited.pop()
+    mst_cost = 0
+    tree_nodes = [start_node]
+    
+    while unvisited:
+        # Find the shortest Manhattan distance from any node IN the tree 
+        # to any node OUTSIDE the tree
+        min_dist = 999999
+        best_node = None
+        
+        for tree_node in tree_nodes:
+            for unvisited_node in unvisited:
+                dist = abs(tree_node[0] - unvisited_node[0]) + abs(tree_node[1] - unvisited_node[1])
+                if dist < min_dist:
+                    min_dist = dist
+                    best_node = unvisited_node
+                    
+        mst_cost += min_dist
+        tree_nodes.append(best_node)
+        unvisited.remove(best_node)
+        
+    # Pacman also has to travel to the food network.
+    # We add the distance from Pacman to the closest food dot.
+    min_dist_to_tree = min(abs(position[0] - f[0]) + abs(position[1] - f[1]) for f in food_list)
+    
+    return mst_cost + min_dist_to_tree
 
 class ClosestDotSearchAgent(SearchAgent):
     "Search for all food using a sequence of searches"
