@@ -255,14 +255,24 @@ def _graphSearch(problem, frontier, algo_name, priority_fn=None, heuristic=None)
         # Successors are expanded in exactly the order getSuccessors()
         # returns them (searchAgents.py is responsible for returning them
         # North -> East -> South -> West per the assignment spec).
-        for successor, step_action, step_cost in problem.getSuccessors(state):
+        successors_list = problem.getSuccessors(state)
+        # If using a Stack (DFS), reverse the list so the first successor 
+        # (North) gets pushed last and therefore popped first (LIFO).
+        if isinstance(frontier, util.Stack):
+            successors_list = list(reversed(successors_list))
+            
+        for successor, step_action, step_cost in successors_list:
             generated_successors.append(successor)
 
             if successor in explored:
                 continue
 
             new_g = g + step_cost
-            if successor not in g_cost or new_g < g_cost[successor]:
+            is_dfs = isinstance(frontier, util.Stack)
+            # DFS (Stack) must always update parent pointers and push to the stack
+            # because the most recently pushed path is the one it explores first.
+            # UCS/A* only update if a strictly cheaper path is found.
+            if successor not in g_cost or new_g < g_cost[successor] or is_dfs:
                 g_cost[successor] = new_g
                 parent_of[successor] = state
                 action_of[successor] = step_action
